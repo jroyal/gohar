@@ -37,7 +37,7 @@ type Log struct {
 	Version string   `json:"version"`
 	Creator Creator  `json:"creator"`
 	Pages   []Page   `json:"pages"`
-	Entries []Entrie `json:"entries"`
+	Entries []Entry `json:"entries"`
 }
 
 type Creator struct {
@@ -57,7 +57,7 @@ type PageTimings struct {
 	OnLoad        float64 `json:"onLoad"`
 }
 
-type Entrie struct {
+type Entry struct {
 	Initiator       Initiator `json:"_initiator,omitempty"`
 	Priority        string    `json:"_priority"`
 	ResourceType    string    `json:"_resourceType"`

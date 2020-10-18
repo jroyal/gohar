@@ -1,98 +1,75 @@
 package main
 
-// A simple program that opens the alternate screen buffer then counts down
-// from 5 and then exits.
-
 import (
 	"fmt"
-	"log"
 	"os"
+	"log"
+	"strconv"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/jroyal/gohar/har"
+	"github.com/gdamore/tcell"
+	"github.com/rivo/tview"
 )
 
+func setTableHeaders(table *tview.Table) {
+	name := tview.NewTableCell("Name")
+	status := tview.NewTableCell("Status")
+	rtype := tview.NewTableCell("Type")
+	initiator := tview.NewTableCell("Initiator")
+	size := tview.NewTableCell("Size")
+	time := tview.NewTableCell("Time")
+	table.SetCell(0, 0, name)
+	table.SetCell(0, 1, status)
+	table.SetCell(0, 2, rtype)
+	table.SetCell(0, 3, initiator)
+	table.SetCell(0, 4, size)
+	table.SetCell(0, 5, time)
+}
+
 func main() {
-	har := har.Load("test.almightyzero.com.har")
-	fmt.Println(len(har.Log.Entries))
 
-	// Log to a file. Useful in debugging. Not required.
-	logfilePath := os.Getenv("BUBBLETEA_LOG")
-	if logfilePath != "" {
-		if _, err := tea.LogToFile(logfilePath, "simple"); err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	p := tea.NewProgram(model{
-		har:      har,
-		selected: make(map[int]struct{}),
-	})
-
-	p.EnterAltScreen()
-	err := p.Start()
-	p.ExitAltScreen()
-
+	f, err := os.OpenFile("debug.log", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error opening file: %v", err)
 	}
-}
+	defer f.Close()
+	log.SetOutput(f)
 
-type model struct {
-	har      har.HarFile
-	selected map[int]struct{}
-	cursor   int
-}
+	harFile := har.Load("test.almightyzero.com.har")
+	app := tview.NewApplication()
+	table := tview.NewTable().
+		SetBorders(false).
+		SetSelectable(true, false).
+		SetSeparator(' ')
+	
 
-func (m model) Init() tea.Cmd {
-	return nil
-}
+	
+	setTableHeaders(table)
+	for row, entry := range harFile.Log.Entries {
+		row++ // bump the row up to skip past the header row
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.har.Log.Entries)-1 {
-				m.cursor++
-			}
-		case "enter", " ":
-			_, ok := m.selected[m.cursor]
-			if ok {
-				delete(m.selected, m.cursor)
-			} else {
-				m.selected[m.cursor] = struct{}{}
-			}
-		}
+		domain := tview.NewTableCell(entry.Request.URL).SetMaxWidth(50)
+		status := tview.NewTableCell(strconv.Itoa(entry.Response.Status))
+		rType := tview.NewTableCell(entry.ResourceType)
+		initiator := tview.NewTableCell(entry.Initiator.URL)
+		size := tview.NewTableCell(strconv.Itoa(entry.Response.TransferSize))
+		time := tview.NewTableCell(fmt.Sprintf("%f", entry.Time))
+		table.SetCell(row, 0, domain)
+		table.SetCell(row, 1, status)
+		table.SetCell(row, 2, rType)
+		table.SetCell(row, 3, initiator)
+		table.SetCell(row, 4, size)
+		table.SetCell(row, 5, time)
+
 	}
-
-	return m, nil
-}
-
-func (m model) View() string {
-	s := "What should we buy at the market?\n\n"
-
-	for i, choice := range m.har.Log.Entries {
-		cursor := " "
-		if m.cursor == i {
-			cursor = ">"
+	table.Select(0, 0).SetFixed(1, 0).SetDoneFunc(func(key tcell.Key) {
+		if key == tcell.KeyEscape {
+			app.Stop()
 		}
-
-		checked := " "
-		if _, ok := m.selected[i]; ok {
-			checked = "x"
-		}
-
-		s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice.Request.URL)
+	}).SetSelectedFunc(func(row int, column int) {
+		table.GetCell(row, column).SetTextColor(tcell.ColorRed)
+	})
+	if err := app.SetRoot(table, true).SetFocus(table).Run(); err != nil {
+		panic(err)
 	}
-
-	s += "\nPress q to quit.\n"
-
-	return s
 }
