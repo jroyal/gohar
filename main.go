@@ -23,7 +23,8 @@ func createNetworkTable(app *tview.Application, harFile *har.HarFile, fileName s
 	table := tview.NewTable().
 		SetBorders(false).
 		SetSelectable(true, false).
-		SetSeparator(' ')
+		SetSeparator(' ').
+		SetEvaluateAllRows(true)
 
 	// Create Table headers
 	name := tview.NewTableCell("Name")
@@ -48,12 +49,12 @@ func createNetworkTable(app *tview.Application, harFile *har.HarFile, fileName s
 			urlBase = entry.Request.URL
 		}
 
-		domain := tview.NewTableCell(urlBase).SetMaxWidth(75)
+		domain := tview.NewTableCell(urlBase).SetMaxWidth(75).SetExpansion(1)
 		status := tview.NewTableCell(strconv.Itoa(entry.Response.Status))
 		rType := tview.NewTableCell(entry.ResourceType)
 		initiator := tview.NewTableCell(entry.Initiator.URL).SetMaxWidth(50)
 		size := tview.NewTableCell(strconv.Itoa(entry.Response.TransferSize))
-		time := tview.NewTableCell(fmt.Sprintf("%f", entry.Time))
+		time := tview.NewTableCell(fmt.Sprintf("%.0f ms", entry.Time))
 		table.SetCell(row, 0, domain)
 		table.SetCell(row, 1, status)
 		table.SetCell(row, 2, rType)
